@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NOVA Farm Order 体験デモ</title>
+<style>
+:root{--ink:#17351f;--paper:#eef2e8;--card:#fff;--stem:#55725a;--berry:#c91f42;--line:#8eabd3;--mine:#8ee35d;--rule:#cbd5c5;--warn:#fff4d8}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;color:var(--ink);background:var(--paper)}
+button,input{font:inherit}.wrap{max-width:560px;margin:0 auto}.head{padding:14px 14px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.head h1{font-size:17px;margin:0}.head p{width:100%;font-size:12px;color:var(--stem);margin:0}.head button{margin-left:auto;border:1px solid var(--rule);background:#fff;border-radius:999px;padding:6px 11px}
+.label{font-size:12px;color:var(--stem);padding:0 14px 6px}.chat{height:44vh;min-height:300px;overflow:auto;background:var(--line);padding:12px}
+.row{display:flex;margin:0 0 9px}.row.me{justify-content:flex-end}.bubble{max-width:85%;background:#fff;border-radius:16px;padding:9px 12px;font-size:14px;line-height:1.55;box-shadow:0 1px 1px #0001}
+.row.me .bubble{background:var(--mine);border-bottom-right-radius:4px}.row.bot .bubble{border-bottom-left-radius:4px}.bubble.stop{border-left:4px solid var(--berry)}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.actions button{border:1px solid #5f7a63;background:#fff;border-radius:999px;padding:6px 10px;color:var(--ink);font-size:13px}
+.compose{display:flex;gap:6px;background:var(--line);padding:8px 12px}.compose input{flex:1;min-width:0;border:0;border-radius:999px;padding:10px 13px;font-size:15px}.compose button{border:0;border-radius:999px;background:var(--ink);color:#fff;padding:10px 15px}
+.presets{display:flex;gap:6px;overflow:auto;background:var(--line);padding:0 12px 10px}.presets button{white-space:nowrap;border:0;border-radius:999px;background:#ffffffdb;padding:7px 10px;font-size:12px}
+.seam{background:var(--ink);color:#fff;font-size:12px;padding:8px 14px}.tabs{display:flex;border-bottom:1px solid var(--rule)}.tabs button{flex:1;border:0;background:transparent;padding:12px;color:var(--stem);border-bottom:3px solid transparent}
+.tabs button.on{font-weight:700;color:var(--ink);border-color:var(--berry)}main{padding:12px 14px 30px}.order,.stock{background:#fff;border-radius:12px;padding:12px;margin-bottom:10px}
+.ohead{display:flex;gap:8px;align-items:center}.pill{font-size:12px;border-radius:999px;padding:2px 8px;background:#e7ece4}.num{margin-left:auto;color:var(--stem);font-size:12px}.item{font-weight:700;font-size:16px;margin-top:6px}.meta{color:var(--stem);font-size:13px;margin-top:3px}.flags{background:var(--warn);padding:8px;border-radius:8px;margin-top:8px;font-size:12px}.confirm{width:100%;border:0;background:var(--ink);color:#fff;border-radius:9px;padding:10px;margin-top:10px;font-weight:700}
+.dates{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.dates button{white-space:nowrap;border:1px solid var(--rule);background:#fff;border-radius:8px;padding:7px 9px}.dates button.on{background:var(--ink);color:#fff}
+.stock{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}.sname{font-weight:700}.sub{font-size:12px;color:var(--stem)}.step{display:flex;gap:5px;align-items:center}.step button{width:40px;height:40px;border:1px solid var(--rule);background:var(--paper);border-radius:8px;font-size:20px}.step b{min-width:34px;text-align:center;font-size:20px}.remain{grid-column:1/-1;border-top:1px solid var(--rule);padding-top:8px;font-size:13px}.remain.out{color:var(--berry);font-weight:700}.empty{color:var(--stem);padding:18px 0}.note{font-size:12px;color:var(--stem);padding:0 14px 14px}
+@media(max-width:390px){.chat{min-height:270px}.bubble{max-width:90%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>NOVA Farm Order 体験デモ</h1>
+    <button id="resetBtn" type="button">最初から</button>
+    <p>上がお客さんのLINE風画面、下が農家さんの管理画面です。注文・修正・在庫・確定が連動します。</p>
+  </div>
+  <div class="label">お客さんのLINE風画面</div>
+  <div id="chat" class="chat" aria-live="polite"></div>
+  <div class="presets">
+    <button type="button" data-preset="章姫の2Lを2箱、明日の午前に取りに行きます">章姫2箱・明日午前</button>
+    <button type="button" data-preset="紅ほっぺを5箱、明日の午後に取りに行きます">紅ほっぺ5箱</button>
+    <button type="button" data-preset="いちごほしいです">不足あり注文</button>
+  </div>
+  <div class="compose">
+    <input id="msg" autocomplete="off" placeholder="例：章姫を2箱、9月2日午前に受取">
+    <button id="sendBtn" type="button">送信</button>
+  </div>
+
+  <div class="seam">農家さん側</div>
+  <div class="tabs">
+    <button type="button" id="tabOrders" class="on">受注一覧</button>
+    <button type="button" id="tabStock">在庫設定</button>
+  </div>
+  <main>
+    <section id="ordersPane"></section>
+    <section id="stockPane" hidden></section>
+  </main>
+  <div class="note">※ これはトライアル前の体験デモです。実際のLINE Messaging API・DB接続は別工程です。</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var PRODUCTS = [
+  {id:"akihime-2l", product:"章姫", variant:"2L", unit:"箱"},
+  {id:"akihime-shu", product:"章姫", variant:"秀品", unit:"箱"},
+  {id:"benihoppe-2l", product:"紅ほっぺ", variant:"2L", unit:"箱"}
+];
+var state = {};
+var chatEl = document.getElementById("chat");
+var msgEl = document.getElementById("msg");
+var ordersPane = document.getElementById("ordersPane");
+var stockPane = document.getElementById("stockPane");
+var tabOrders = document.getElementById("tabOrders");
+var tabStock = document.getElementById("tabStock");
+
+function ymd(d){
+  var y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+day;
+}
+function addDays(n){var d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+n);return ymd(d)}
+function dateLabel(iso){
+  var p=iso.split("-").map(Number),d=new Date(p[0],p[1]-1,p[2]),w=["日","月","火","水","木","金","土"][d.getDay()];
+  return p[1]+"/"+p[2]+"("+w+")";
+}
+function defaultState(){
+  var dates=[addDays(0),addDays(1),addDays(2),addDays(3),addDays(4)];
+  var stock={};
+  dates.forEach(function(date){
+    stock[date]={
+      "akihime-2l":{limit:8,reserved:0},
+      "akihime-shu":{limit:6,reserved:0},
+      "benihoppe-2l":{limit:2,reserved:0}
+    };
+  });
+  return {draft:null,pendingField:null,editing:false,orders:[],seq:1,dates:dates,stock:stock,stockDate:dates[1]};
+}
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})}
+function addBubble(kind,html,actions,stop){
+  var row=document.createElement("div");row.className="row "+(kind==="me"?"me":"bot");
+  var b=document.createElement("div");b.className="bubble"+(stop?" stop":"");b.innerHTML=html;
+  if(actions&&actions.length){
+    var a=document.createElement("div");a.className="actions";
+    actions.forEach(function(x){
+      var btn=document.createElement("button");btn.type="button";btn.textContent=x.label;
+      btn.addEventListener("click",function(){x.fn()});a.appendChild(btn);
+    });b.appendChild(a);
+  }
+  row.appendChild(b);chatEl.appendChild(row);chatEl.scrollTop=chatEl.scrollHeight;
+}
+function bot(text,actions,stop){addBubble("bot",esc(text).replace(/\n/g,"<br>"),actions,stop)}
+function me(text){addBubble("me",esc(text),null,false)}
+function newDraft(){return {product:null,variant:null,productId:null,quantity:null,date:null,time:null,method:null,status:"DRAFT"}}
+function productFromText(t){
+  if(/紅ほっぺ|べにほっぺ/.test(t)) return PRODUCTS[2];
+  if(/章姫|あきひめ|アキヒメ/.test(t)){
+    if(/秀品|\b秀\b/.test(t)) return PRODUCTS[1];
+    return PRODUCTS[0];
+  }
+  return null;
+}
+function parseDate(t){
+  var d=new Date();d.setHours(12,0,0,0);
+  if(/明後日/.test(t)){d.setDate(d.getDate()+2);return ymd(d)}
+  if(/明日/.test(t)){d.setDate(d.getDate()+1);return ymd(d)}
+  if(/今日|本日/.test(t)) return ymd(d);
+  var m=t.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/)||t.match(/(\d{1,2})\s*[\/\-]\s*(\d{1,2})/);
+  if(m){
+    var y=d.getFullYear(),mo=Number(m[1]),da=Number(m[2]),cand=new Date(y,mo-1,da,12);
+    if(cand.getMonth()!==mo-1||cand.getDate()!==da)return null;
+    if(cand.getTime()<d.getTime()-86400000*30)cand=new Date(y+1,mo-1,da,12);
+    return ymd(cand);
+  }
+  return null;
+}
+function parseQty(t,pending){
+  var m=t.match(/(\d+)\s*箱/);if(m)return Number(m[1]);
+  if(pending==="quantity"){m=t.match(/^\s*(\d+)\s*$/);if(m)return Number(m[1])}
+  return null;
+}
+function mergeMessage(d,t,pending){
+  var p=productFromText(t);if(p){d.product=p.product;d.variant=p.variant;d.productId=p.id}
+  var q=parseQty(t,pending);if(q&&q>0)d.quantity=q;
+  var date=parseDate(t);if(date)d.date=date;
+  if(/午前|朝/.test(t))d.time="午前";
+  else if(/午後|昼/.test(t))d.time="午後";
+  else if(/夕方|夜/.test(t))d.time="夕方";
+  if(/配送|発送|送って|宅配|届け/.test(t))d.method="配送";
+  else if(/店頭|取りに|受け取り|引き取り|受取/.test(t))d.method="店頭受取";
+}
+function nextMissing(d){
+  if(!d.productId)return "product";
+  if(!d.quantity)return "quantity";
+  if(!d.date)return "date";
+  if(!d.method)return "method";
+  if(!d.time)return "time";
+  return null;
+}
+function ask(field){
+  state.pendingField=field;
+  if(field==="product") bot("ご希望の品種を教えてください。",[
+    {label:"章姫",fn:function(){handleCustomer("章姫")}},
+    {label:"紅ほっぺ",fn:function(){handleCustomer("紅ほっぺ")}}
+  ]);
+  else if(field==="quantity") bot("何箱ご希望ですか？ 例：2箱");
+  else if(field==="date") bot("ご希望日を教えてください。例：9月2日 / 9/2 / 明日");
+  else if(field==="method") bot("受取方法を選んでください。",[
+    {label:"店頭受取",fn:function(){handleCustomer("店頭受取")}},
+    {label:"配送",fn:function(){handleCustomer("配送")}}
+  ]);
+  else if(field==="time") bot("希望時間帯を選んでください。",[
+    {label:"午前",fn:function(){handleCustomer("午前")}},
+    {label:"午後",fn:function(){handleCustomer("午後")}},
+    {label:"夕方",fn:function(){handleCustomer("夕方")}}
+  ]);
+}
+function summary(d){
+  return "注文内容を確認してください。\n"+
+    "品種："+d.product+" "+d.variant+"\n"+
+    "数量："+d.quantity+"箱\n"+
+    "希望日："+dateLabel(d.date)+"\n"+
+    "時間："+d.time+"\n"+
+    "方法："+d.method;
+}
+function showSummary(){
+  state.pendingField=null;
+  bot(summary(state.draft),[
+    {label:"この内容で注文",fn:approveDraft},
+    {label:"修正する",fn:showEditMenu}
+  ]);
+}
+function showEditMenu(){
+  state.editing=true;
+  bot("どこを修正しますか？",[
+    {label:"品種",fn:function(){state.pendingField="product";bot("新しい品種を送ってください。例：紅ほっぺ")}},
+    {label:"数量",fn:function(){state.pendingField="quantity";bot("新しい数量を送ってください。例：3箱")}},
+    {label:"日付",fn:function(){state.pendingField="date";bot("新しい日付を送ってください。例：9月2日 / 9/2")}},
+    {label:"時間",fn:function(){state.pendingField="time";bot("午前・午後・夕方から送ってください。")}},
+    {label:"受取方法",fn:function(){state.pendingField="method";bot("店頭受取または配送と送ってください。")}}
+  ]);
+}
+function validateEditedField(field,d){
+  if(field==="product")return !!d.productId;
+  if(field==="quantity")return !!d.quantity;
+  if(field==="date")return !!d.date;
+  if(field==="time")return !!d.time;
+  if(field==="method")return !!d.method;
+  return true;
+}
+function handleCustomer(text){
+  text=String(text||"").trim();if(!text)return;
+  me(text);
+  if(!state.draft)state.draft=newDraft();
+  var oldField=state.pendingField;
+  var before=JSON.stringify(state.draft);
+  mergeMessage(state.draft,text,oldField);
+  if(state.editing&&oldField){
+    if(before===JSON.stringify(state.draft)||!validateEditedField(oldField,state.draft)){
+      bot("うまく読み取れませんでした。もう一度入力してください。",null,true);return;
+    }
+    state.editing=false;state.pendingField=null;
+    bot("修正しました。");showSummary();renderAll();return;
+  }
+  var miss=nextMissing(state.draft);
+  if(miss){ask(miss);renderAll();return}
+  showSummary();renderAll();
+}
+function ensureStockDate(date){
+  if(!state.stock[date]){
+    state.stock[date]={
+      "akihime-2l":{limit:8,reserved:0},
+      "akihime-shu":{limit:6,reserved:0},
+      "benihoppe-2l":{limit:2,reserved:0}
+    };
+    if(state.dates.indexOf(date)<0){state.dates.push(date);state.dates.sort()}
+  }
+}
+function approveDraft(){
+  var d=state.draft;if(!d)return;
+  ensureStockDate(d.date);
+  var s=state.stock[d.date][d.productId];
+  var remain=Math.max(0,s.limit-s.reserved);
+  if(d.quantity>remain){
+    bot("申し訳ありません。"+d.product+" "+d.variant+"は"+dateLabel(d.date)+"分が残り"+remain+"箱のため、"+d.quantity+"箱は受付できません。数量を修正してください。",[
+      {label:"数量を修正",fn:function(){state.editing=true;state.pendingField="quantity";bot("新しい数量を送ってください。")}}
+    ],true);
+    return;
+  }
+  s.reserved+=d.quantity;
+  var order={
+    id:state.seq++,product:d.product,variant:d.variant,productId:d.productId,quantity:d.quantity,
+    date:d.date,time:d.time,method:d.method,status:"ACCEPTED",created:new Date().toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit"})
+  };
+  state.orders.unshift(order);
+  bot("注文を受け付けました。農家さんの最終確認後に「確定」となります。");
+  state.draft=null;state.pendingField=null;state.editing=false;
+  renderAll();
+}
+function confirmOrder(id){
+  var o=state.orders.find(function(x){return x.id===id});if(!o)return;
+  o.status="CONFIRMED";renderAll();bot("農家さんが注文を確定しました。ありがとうございます。");
+}
+function renderOrders(){
+  ordersPane.innerHTML="";
+  if(!state.orders.length){ordersPane.innerHTML='<div class="empty">まだ受注はありません。上のLINE風画面から注文してみてください。</div>';return}
+  state.orders.forEach(function(o){
+    var el=document.createElement("div");el.className="order";
+    el.innerHTML='<div class="ohead"><span class="pill">'+(o.status==="CONFIRMED"?"確定":"受付済み")+'</span><span class="num">#'+String(o.id).padStart(3,"0")+'</span></div>'+
+      '<div class="item">'+esc(o.product)+" "+esc(o.variant)+"　"+o.quantity+"箱</div>"+
+      '<div class="meta">'+dateLabel(o.date)+" "+esc(o.time)+" / "+esc(o.method)+" / "+esc(o.created)+'</div>';
+    if(o.status!=="CONFIRMED"){
+      var b=document.createElement("button");b.type="button";b.className="confirm";b.textContent="この注文を確定する";
+      b.addEventListener("click",function(){confirmOrder(o.id)});el.appendChild(b);
+    }
+    ordersPane.appendChild(el);
+  });
+}
+function renderStock(){
+  stockPane.innerHTML="";
+  var dates=document.createElement("div");dates.className="dates";
+  state.dates.forEach(function(date){
+    var b=document.createElement("button");b.type="button";b.textContent=dateLabel(date);if(date===state.stockDate)b.className="on";
+    b.addEventListener("click",function(){state.stockDate=date;renderStock()});dates.appendChild(b);
+  });stockPane.appendChild(dates);
+  PRODUCTS.forEach(function(p){
+    ensureStockDate(state.stockDate);
+    var s=state.stock[state.stockDate][p.id],rem=Math.max(0,s.limit-s.reserved);
+    var el=document.createElement("div");el.className="stock";
+    var left=document.createElement("div");left.innerHTML='<div class="sname">'+esc(p.product)+" "+esc(p.variant)+'</div><div class="sub">販売上限（農家さんが設定）</div>';
+    var step=document.createElement("div");step.className="step";
+    var minus=document.createElement("button");minus.type="button";minus.textContent="−";
+    var val=document.createElement("b");val.textContent=s.limit;
+    var plus=document.createElement("button");plus.type="button";plus.textContent="＋";
+    minus.addEventListener("click",function(){if(s.limit>s.reserved){s.limit--;renderStock()}else alert("既に"+s.reserved+"箱の受注があるため、これ以上下げられません。")});
+    plus.addEventListener("click",function(){s.limit++;renderStock()});
+    step.append(minus,val,plus);
+    var remEl=document.createElement("div");remEl.className="remain"+(rem<=0?" out":"");
+    remEl.textContent=rem<=0?"受付停止中（在庫上限に到達）":"受注済み "+s.reserved+"箱 / 残り "+rem+"箱";
+    el.append(left,step,remEl);stockPane.appendChild(el);
+  });
+}
+function renderAll(){renderOrders();renderStock()}
+function switchTab(which){
+  var orders=which==="orders";ordersPane.hidden=!orders;stockPane.hidden=orders;
+  tabOrders.classList.toggle("on",orders);tabStock.classList.toggle("on",!orders);
+}
+function reset(){
+  state=defaultState();chatEl.innerHTML="";switchTab("orders");renderAll();
+  bot("いちごのご注文をどうぞ。品種・数量・日付などを一度に送っても、分けて送っても大丈夫です。");
+}
+document.getElementById("sendBtn").addEventListener("click",function(){var t=msgEl.value;msgEl.value="";handleCustomer(t);msgEl.focus()});
+msgEl.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();document.getElementById("sendBtn").click()}});
+document.querySelectorAll("[data-preset]").forEach(function(b){b.addEventListener("click",function(){handleCustomer(b.getAttribute("data-preset"))})});
+document.getElementById("resetBtn").addEventListener("click",reset);
+tabOrders.addEventListener("click",function(){switchTab("orders")});
+tabStock.addEventListener("click",function(){switchTab("stock")});
+reset();
+})();
+</script>
+</body>
+</html>
